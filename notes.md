@@ -172,5 +172,131 @@ requests.exceptions.ConnectionError: ('Connection aborted.', TimeoutError(10060,
 - 然后使用 pip 直接安装下到本地的 model （参见[Link](https://spacy.io/usage/models#download-pip)）
 
 ```
-pip install /path/to/en_core_web_sm-2.2.0.tar.gz
+pip install /path/to/en_core_web_md-2.2.0.tar.gz
 ```
+
+- 安装过程又不停报错，不断重试（估计是 Windows 的缘故）（最终发现是没开管理员权限）
+
+#### 从 main.py 开始解释执行，程序加载完spacy后就卡住了
+
+- 暂停程序执行，检查调用栈
+
+- 发现程序中一个死循环（不清楚是否是反编译器的bug）
+
+```
+while 1:
+    if i < len(raw_sentences):
+        if cur_sent[(-1)] in '.!?;':
+            new_sentences.append(cur_sent)
+            cur_sent = raw_sentences[i]
+        else:
+            cur_sent += ' ' + raw_sentences[i]
+        i += 1
+```
+
+- 应该改成
+
+```
+while i < len(raw_sentences):
+  if cur_sent[(-1)] in '.!?;':
+      new_sentences.append(cur_sent)
+      cur_sent = raw_sentences[i]
+  else:
+      cur_sent += ' ' + raw_sentences[i]
+  i += 1
+```
+
+#### 关键代码说明
+
+- pipelines.py > class NerPipeline
+
+```
+def run(self):
+    raw_documents = self.reader.read()
+    """
+    数据读入阶段结束，raw_documents = {
+      文章序号: {
+        'a': 文章摘要
+        't': 文章标题
+      }
+    }
+    """
+    title_docs, abstract_docs = self.data_manager.parse_documents(raw_documents)
+    title_doc_objs = pre_process.process(title_docs, self.pre_config, constants.SENTENCE_TYPE_TITLE)
+    abs_doc_objs = pre_process.process(abstract_docs, self.pre_config, constants.SENTENCE_TYPE_ABSTRACT)
+    doc_objects = self.data_manager.merge_documents(title_doc_objs, abs_doc_objs)
+    """
+    预处理阶段结束，doc_objects = [
+      content: 文章内容（标题+摘要）
+      id: 文章序号
+      metadata: {...}
+      sentences: [
+        content: 句子内容
+        doc_offset: (文章中起始位置, 文章中结束位置)
+        metadata: {...}
+        tokens: [
+            content: 单词内容
+            doc_offset: (文章中起始位置, 文章中结束位置)
+            metadata: {...}
+            processed_content: 单词内容
+            sentence_offset: (句中起始位置, 句中结束位置)
+        ]
+      ]
+    ]
+    """
+    dict_nern = ner.process(doc_objects, self.nern_config)
+    self.writer.write(self.output_file, raw_documents, dict_nern)
+```
+
+#### 预处理阶段结束后又卡住了
+
+- 暂停程序也不管用，程序停不下来，调用栈信息拿不到，不知道程序卡在哪了
+
+- 只有反复重启、单步调试找卡住的位置
+
+- 又是死循环
+
+```
+while 1:
+  if idx < num_batch:
+      X_batch = data['X'][start:start + self.batch_size]
+      Y_nen_batch = data['Y_nen'][start:start + self.batch_size]
+      Z_batch = data['Z'][start:start + self.batch_size]
+      char_ids, word_ids = zip(*[zip(*x) for x in X_batch])
+      word_ids, sequence_lengths = pad_sequences(word_ids, pad_tok=0)
+      char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
+      nen_labels, _ = pad_sequences(Y_nen_batch, pad_tok=([0] * self.nen_label_size), nlevels=3)
+      pos_ids, _ = pad_sequences(Z_batch, pad_tok=0)
+      start += self.batch_size
+      idx += 1
+      yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
+```
+
+- 改成
+
+```
+while idx < num_batch:
+  X_batch = data['X'][start:start + self.batch_size]
+  Y_nen_batch = data['Y_nen'][start:start + self.batch_size]
+  Z_batch = data['Z'][start:start + self.batch_size]
+  char_ids, word_ids = zip(*[zip(*x) for x in X_batch])
+  word_ids, sequence_lengths = pad_sequences(word_ids, pad_tok=0)
+  char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
+  nen_labels, _ = pad_sequences(Y_nen_batch, pad_tok=([0] * self.nen_label_size), nlevels=3)
+  pos_ids, _ = pad_sequences(Z_batch, pad_tok=0)
+  start += self.batch_size
+  idx += 1
+  yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
+```
+
+#### 再次运行程序，报错
+
+```
+module 'constants' has no attribute 'REV_ETYPE_MAP'
+```
+
+- 发现 contants.py 里根本没有定义 REV_ETYPE_MAP，只定义了一个 ETYPE_MAP （怀疑是作者不小心打错了）
+
+- 把 REV_ETYPE_MAP 改成 ETYPE_MAP
+
+

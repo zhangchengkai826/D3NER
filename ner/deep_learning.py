@@ -105,11 +105,11 @@ class TensorNer(NER):
             while j < len(y_pred[i]):
                 e = None
                 if self.all_labels[y_pred[i][j]][0] == 'U':
-                    e = BioEntity(etype=(constants.REV_ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:j + 1]))
+                    e = BioEntity(etype=(constants.ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:j + 1]))
                 elif self.all_labels[y_pred[i][j]][0] == 'B':
                     l_idx = self._TensorNer__last_index(j, y_pred[i])
                     if self.all_labels[y_pred[i][l_idx]][0] == 'L' and self.all_labels[y_pred[i][l_idx]][1] == self.all_labels[y_pred[i][j]][1]:
-                        e = BioEntity(etype=(constants.REV_ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:l_idx + 1]))
+                        e = BioEntity(etype=(constants.ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:l_idx + 1]))
                     j = l_idx
                 j += 1
                 if e:

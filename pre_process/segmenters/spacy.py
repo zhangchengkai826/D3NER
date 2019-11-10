@@ -18,14 +18,13 @@ class SpacySegmenter(Segmenter):
         new_sentences = []
         cur_sent = raw_sentences[0]
         i = 1
-        while 1:
-            if i < len(raw_sentences):
-                if cur_sent[(-1)] in '.!?;':
-                    new_sentences.append(cur_sent)
-                    cur_sent = raw_sentences[i]
-                else:
-                    cur_sent += ' ' + raw_sentences[i]
-                i += 1
+        while i < len(raw_sentences):
+            if cur_sent[(-1)] in '.!?;':
+                new_sentences.append(cur_sent)
+                cur_sent = raw_sentences[i]
+            else:
+                cur_sent += ' ' + raw_sentences[i]
+            i += 1
 
         new_sentences.append(cur_sent)
         return new_sentences

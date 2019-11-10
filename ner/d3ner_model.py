@@ -131,19 +131,18 @@ class BiLSTMCRF(BiLSTMCRFCore):
     def _next_batch_predict(self, data, num_batch):
         start = 0
         idx = 0
-        while 1:
-            if idx < num_batch:
-                X_batch = data['X'][start:start + self.batch_size]
-                Y_nen_batch = data['Y_nen'][start:start + self.batch_size]
-                Z_batch = data['Z'][start:start + self.batch_size]
-                char_ids, word_ids = zip(*[zip(*x) for x in X_batch])
-                word_ids, sequence_lengths = pad_sequences(word_ids, pad_tok=0)
-                char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
-                nen_labels, _ = pad_sequences(Y_nen_batch, pad_tok=([0] * self.nen_label_size), nlevels=3)
-                pos_ids, _ = pad_sequences(Z_batch, pad_tok=0)
-                start += self.batch_size
-                idx += 1
-                yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
+        while idx < num_batch:
+            X_batch = data['X'][start:start + self.batch_size]
+            Y_nen_batch = data['Y_nen'][start:start + self.batch_size]
+            Z_batch = data['Z'][start:start + self.batch_size]
+            char_ids, word_ids = zip(*[zip(*x) for x in X_batch])
+            word_ids, sequence_lengths = pad_sequences(word_ids, pad_tok=0)
+            char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
+            nen_labels, _ = pad_sequences(Y_nen_batch, pad_tok=([0] * self.nen_label_size), nlevels=3)
+            pos_ids, _ = pad_sequences(Z_batch, pad_tok=0)
+            start += self.batch_size
+            idx += 1
+            yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
 
     def predict_classes(self, data, transition_params):
         num_batch = len(data['X']) // self.batch_size + 1
