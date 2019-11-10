@@ -25,11 +25,10 @@ def cut_incomplete_entity(x, y):
             y = y[:-1]
         elif y[(-1)][0] == 'I':
             i = len(y) - 1
-            while 1:
-                if i >= 0:
-                    if y[i][0] == 'B':
-                        break
-                    i -= 1
+            while i >= 0:
+                if y[i][0] == 'B':
+                    break
+                i -= 1
 
             x = x[:i]
             y = y[:i]

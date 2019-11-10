@@ -10,8 +10,10 @@ SENTENCE_TYPE_ABSTRACT = 2
 with open('entity_types') as (f):
     ENTITY_TYPES = f.read().strip().split('\n')
 ETYPE_MAP = {}
+REV_ETYPE_MAP = {}
 for i in range(len(ENTITY_TYPES)):
     ETYPE_MAP[ENTITY_TYPES[i]] = str(i)
+    REV_ETYPE_MAP[str(i)] = ENTITY_TYPES[i]
 
 ALL_LABELS = []
 for i in ENTITY_TYPES:

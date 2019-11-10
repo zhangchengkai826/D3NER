@@ -289,6 +289,8 @@ while idx < num_batch:
   yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
 ```
 
+- 检查了一遍所有文件里的形如 while 1: if xxx 的语句，改掉所有死循环
+
 #### 再次运行程序，报错
 
 ```
@@ -299,4 +301,48 @@ module 'constants' has no attribute 'REV_ETYPE_MAP'
 
 - 把 REV_ETYPE_MAP 改成 ETYPE_MAP
 
+#### 再次运行，报错
 
+- 发现不是作者把 REV_ETYPE_MAP 打成了 ETYPE_MAP，而是忘记定义了 REV_ETYPE_MAP （即把 ETYPE_MAP 键值对调得到的新字典）
+
+#### 再次运行，成功
+
+- 得到输出文件 output.txt，它和输出文件 data/cdr/cdr_test.txt 的格式类似，下面是它的节选
+
+```
+23433219|t|The risk and associated factors of methamphetamine psychosis in methamphetamine-dependent patients in Malaysia. （文章标题）
+23433219|a|OBJECTIVE: The objective of this study was to determine the risk of lifetime and current methamphetamine-induced psychosis in patients with methamphetamine dependence. The association between psychiatric co-morbidity and methamphetamine-induced psychosis was also studied. METHODS: This was a cross-sectional study conducted concurrently at a teaching hospital and a drug rehabilitation center in Malaysia. Patients with the diagnosis of methamphetamine based on DSM-IV were interviewed using the Mini International Neuropsychiatric Interview (M.I.N.I.) for methamphetamine-induced psychosis and other Axis I psychiatric disorders. The information on sociodemographic background and drug use history was obtained from interview or medical records. RESULTS: Of 292 subjects, 47.9% of the subjects had a past history of psychotic symptoms and 13.0% of the patients were having current psychotic symptoms. Co-morbid major depressive disorder (OR=7.18, 95 CI=2.612-19.708), bipolar disorder (OR=13.807, 95 CI=5.194-36.706), antisocial personality disorder (OR=12.619, 95 CI=6.702-23.759) and heavy methamphetamine uses were significantly associated with lifetime methamphetamine-induced psychosis after adjusted for other factors. Major depressive disorder (OR=2.870, CI=1.154-7.142) and antisocial personality disorder (OR=3.299, 95 CI=1.375-7.914) were the only factors associated with current psychosis. CONCLUSION: There was a high risk of psychosis in patients with methamphetamine dependence. It was associated with co-morbid affective disorder, antisocial personality, and heavy methamphetamine use. It is recommended that all cases of methamphetamine dependence should be screened for psychotic symptoms. （文章摘要）
+（文章序号）（该实体名称在文中出现的位置）（模型识别出的实体名称）（该实体所属的类别）
+23433219	35	50	methamphetamine	Chemical
+23433219	51	60	psychosis	Disease
+23433219	64	79	methamphetamine	Chemical
+23433219	201	216	methamphetamine	Chemical
+23433219	225	234	psychosis	Disease
+23433219	252	267	methamphetamine	Chemical
+23433219	304	315	psychiatric	Disease
+23433219	333	348	methamphetamine	Chemical
+23433219	357	366	psychosis	Disease
+23433219	550	565	methamphetamine	Chemical
+23433219	670	685	methamphetamine	Chemical
+23433219	694	703	psychosis	Disease
+23433219	714	718	Axis	Disease （识别错误）
+23433219	721	742	psychiatric disorders	Disease
+23433219	930	939	psychotic	Disease
+23433219	995	1013	psychotic symptoms	Disease
+23433219	1031	1050	depressive disorder	Disease
+23433219	1082	1098	bipolar disorder	Disease
+23433219	1132	1163	antisocial personality disorder	Disease
+23433219	1206	1221	methamphetamine	Chemical
+23433219	1271	1286	methamphetamine	Chemical
+23433219	1295	1304	psychosis	Disease
+23433219	1345	1364	depressive disorder	Disease
+23433219	1396	1427	antisocial personality disorder	Disease
+23433219	1504	1513	psychosis	Disease
+23433219	1552	1561	psychosis	Disease
+23433219	1579	1594	methamphetamine	Chemical
+23433219	1640	1658	affective disorder	Disease
+23433219	1660	1682	antisocial personality	Disease
+23433219	1694	1709	methamphetamine	Chemical
+23433219	1751	1766	methamphetamine	Chemical
+23433219	1801	1810	psychotic	Disease
+```

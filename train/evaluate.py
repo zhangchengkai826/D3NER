@@ -70,14 +70,13 @@ class Evaluator:
         :param array: y_true or y_pred
         """
         j = cur_idx + 1
-        while 1:
-            if j < len(array):
-                if array[j] == array[cur_idx] + 1:
-                    j += 1
-                elif array[j] == array[cur_idx] + 2:
-                    return j
-                else:
-                    return j - 1
+        while j < len(array):
+            if array[j] == array[cur_idx] + 1:
+                j += 1
+            elif array[j] == array[cur_idx] + 2:
+                return j
+            else:
+                return j - 1
 
         return j - 1
 
@@ -87,18 +86,17 @@ class Evaluator:
         """
         true_pos = 0
         j = 0
-        while 1:
-            if j < len(self.y_true):
-                if self.y_true[j] == self.y_pred[j]:
-                    if self.y_pred[j] == ALL_LABELS.index('U' + etype):
+        while j < len(self.y_true):
+            if self.y_true[j] == self.y_pred[j]:
+                if self.y_pred[j] == ALL_LABELS.index('U' + etype):
+                    true_pos += 1
+                elif self.y_pred[j] == ALL_LABELS.index('B' + etype):
+                    L_idx = self._index_of_L(j, self.y_true)
+                    check = self.y_true[j:L_idx + 1] == self.y_pred[j:L_idx + 1]
+                    if check.all():
                         true_pos += 1
-                    elif self.y_pred[j] == ALL_LABELS.index('B' + etype):
-                        L_idx = self._index_of_L(j, self.y_true)
-                        check = self.y_true[j:L_idx + 1] == self.y_pred[j:L_idx + 1]
-                        if check.all():
-                            true_pos += 1
-                        j = L_idx
-                j += 1
+                    j = L_idx
+            j += 1
 
         return true_pos
 
@@ -109,16 +107,15 @@ class Evaluator:
         """
         count = 0
         j = 0
-        while 1:
-            if j < len(array):
-                if array[j] == ALL_LABELS.index('U' + etype):
+        while j < len(array):
+            if array[j] == ALL_LABELS.index('U' + etype):
+                count += 1
+            elif array[j] == ALL_LABELS.index('B' + etype):
+                L_idx = self._index_of_L(j, array)
+                if array[L_idx] == ALL_LABELS.index('L' + etype):
                     count += 1
-                elif array[j] == ALL_LABELS.index('B' + etype):
-                    L_idx = self._index_of_L(j, array)
-                    if array[L_idx] == ALL_LABELS.index('L' + etype):
-                        count += 1
-                    j = L_idx
-                j += 1
+                j = L_idx
+            j += 1
 
         return count
 
