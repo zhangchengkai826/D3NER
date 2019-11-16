@@ -1,0 +1,40 @@
+digraph D3NER {
+  subgraph cluster_main_py {
+    label = "main.py";
+    main_func [label="main(model, dataset, input_file, output_file)"];
+  }
+  subgraph cluster_pipelines_py {
+    label = "pipelines.py";
+    subgraph cluster_NerPipeline_clz {
+      label = "NerPipeline";
+      run_func [label="run()"];
+    }
+  }
+  subgraph cluster_ner_process_py {
+    label = "ner/process.py";
+    process_func [label="process(documents, config)"];
+  }
+  subgraph cluster_deeplearning_py {
+    label = "ner/deep_learning.py";
+    subgraph cluster_TensorNer_clz {
+      label = "TensorNer";
+      TensorNer_process_func [label="process(document)"];
+      __parse_document_to_data_func [label="__parse_document_to_data(document)"];
+      __parse_sentence_func [label="__parse_sentence(sentence, abb, tfs)"];
+      __process_word_func [label="__process_word(word)"];
+    }
+  }
+  subgraph cluster_d3nermodel_py {
+    label = "ner/d3ner_model.py";
+    subgraph cluster_BiLSTMCRF_clz {
+      label = "BiLSTMCRF";
+      predict_classes_func [label="predict_classes(data, transition_params)"];
+      _next_batch_predict_func [label="_next_batch_predict(data, num_batch)"];
+    }
+  }
+  main_func -> run_func -> process_func -> TensorNer_process_func
+  TensorNer_process_func -> __parse_document_to_data_func [label=1]
+  TensorNer_process_func -> predict_classes_func [label=2]
+  __parse_document_to_data_func -> __parse_sentence_func -> __process_word_func;
+  predict_classes_func -> _next_batch_predict_func
+}

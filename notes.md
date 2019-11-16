@@ -245,6 +245,18 @@ def run(self):
     ]
     """
     dict_nern = ner.process(doc_objects, self.nern_config)
+    """
+    识别阶段结束，dict_ner = [
+      文章序号: [
+        content: 模型识别出的实体名称
+        ids: {...}
+        tokens: [
+          ...
+        ]
+        type: 该实体所属的类别
+      ]
+    ]
+    """
     self.writer.write(self.output_file, raw_documents, dict_nern)
 ```
 
@@ -346,3 +358,220 @@ module 'constants' has no attribute 'REV_ETYPE_MAP'
 23433219	1751	1766	methamphetamine	Chemical
 23433219	1801	1810	psychotic	Disease
 ```
+
+# 关键代码分析
+
+```
+def process(self, document):
+    X, Z, Y_nen = self._TensorNer__parse_document_to_data(document)
+    """
+    数字化阶段结束
+    """
+    y_pred = self.model.predict_classes({'X':X,  'Z':Z,  'Y_nen':Y_nen}, self.transition_params)
+    entities = self._TensorNer__decode_y_pred(y_pred, document)
+    return entities
+```
+
+```
+"""
+document = {
+  content: (文章内容)
+  id: (文章序号)
+}
+"""
+def __parse_document_to_data(self, document):
+    X, Z, Y_nen = [], [], []
+    abb = []
+    tfs = None
+    if document.id in self.vocab_ab3p:
+        unzipped = list(zip(*self.vocab_ab3p[document.id]))
+        """
+        abb = [
+          (该文章中的缩写单词)
+        ]
+        """
+        abb = unzipped[0]
+        """
+        tfs = [
+          tfs for ENTITY_TYPE Disease,
+          tfs for ENTITY_TYPE Chemical
+        ]
+        """
+        tfs = unzipped[1:]
+    for s in document.sentences:
+        x, z, y_nen = self._TensorNer__parse_sentence(s, abb, tfs)
+        """
+        x = (
+          [
+            Character-level embedding 值
+          ],
+          Token-level embedding 值
+        )
+        z = POS (词性) embedding 值
+        y_nen = Abbreviation embedding 值
+        """
+        X.append(x)
+        Z.append(z)
+        Y_nen.append(y_nen)
+
+    return (X, Z, Y_nen)
+```
+
+## AB3P 是啥
+
+> All local abbreviations in an abstract are first identified using
+Ab3P (Sohn et al., 2008). Then, the character-level n-gram TF-IDF vector for each abbreviation’s full form and every concept name in MeSH and FSU-PRGE (training set) are generated for measuring the pair-wise cosine similarity scores.
+
+- [Github 仓库地址](https://github.com/ncbi-nlp/Ab3P)
+
+## TF-IDF 是啥
+
+> 在一份给定的文件里，词频（term frequency，tf）指的是某一个给定的词语在该文件中出现的频率
+
+> 词频 = 该词语在文件中出现的次数 / 文件所包含的词语总数
+
+> 逆向文件频率（inverse document frequency，idf）是一个词语普遍重要性的度量。某一特定词语的idf，可以由总文件数目除以包含该词语之文件的数目，再将得到的商取以10为底的对数得到
+
+> 逆向文件频率 = lg(语料库中的文件总数 / 1+包含该词语的文件总数)
+
+> TF-IDF = TF * IDF
+
+> 如果一个单词在某一特定文件中出现的次数很多，但在其他文件中出现的次数很少，那么它很有可能是这个文件中的关键词之一，而由以上公式我们可知，该词语相对于该文件的TD-IDF值会很高。因此，我们可以使用TD-IDF来过滤掉文件中的常见词语，保留重要的关键词
+
+```
+def __parse_sentence(self, sentence, abb, tfs):
+    w = []
+    p = []
+    n = []
+    for i in range(len(sentence.tokens)):
+        word = self._process_word(sentence.tokens[i].processed_content)
+        """
+        pos: (该单词的词性所对应的唯一识别码)
+        """
+        pos = self.vocab_poses[sentence.tokens[i].metadata['POS']]
+        w += [word]
+        p += [pos]
+        if word in abb:
+            idx = abb.index(word)
+            n.append([tfs[k][idx] for k in range(len(constants.ENTITY_TYPES))])
+        else:
+            n.append([0] * len(constants.ENTITY_TYPES))
+
+    return (w, p, n)
+```
+
+```
+def _process_word(self, word):
+    char_ids = []
+    if self.vocab_chars is not None:
+        for char in word:
+            if char in self.vocab_chars:
+                char_ids += [self.vocab_chars[char]]
+
+    if word in self.vocab_words:
+        word_id = self.vocab_words[word]
+    else:
+        word_id = self.vocab_words[self.unk]
+    if self.vocab_chars is not None:
+        """
+        char_id: [
+          (组成该单词的每一个字符所对应的唯一识别码)
+        ]
+        word_id: (该单词所对应的唯一识别码)
+        """
+        return (char_ids, word_id)
+    else:
+        return word_id
+```
+
+```
+def predict_classes(self, data, transition_params):
+    num_batch = len(data['X']) // self.batch_size + 1
+    y_pred = []
+    """
+    一个batch同时处理32句话
+    测试用的文章都比较短，只有几句话，一般一个batch就处理完了
+    """
+    for idx, batch in enumerate(self._next_batch_predict(data={'X':data['X'],  'Z':data['Z'],  'Y_nen':data['Y_nen']},
+      num_batch=num_batch)):
+        """
+        words = [
+          [
+            句子x单词y的 Token-level embedding 值
+            ...
+          ]
+        ]
+        chars = [
+          [
+            [
+              句子x单词y字符z的 Character-level embedding 值
+            ]
+          ]
+        ]
+        nen_labels = [
+          [
+            [
+              句子x单词y实体类别z的 Abbreviation embedding 值
+            ]
+          ]
+        ]
+        sequence_lengths = [
+          句子x所含的单词数
+        ]
+        word_lengths = [
+          [
+            句子x单词y所含的字符数
+          ]
+        ]
+        poses = [
+          [
+            句子x单词y的 POS embedding 值
+          ]
+        ]
+        """
+        words, chars, nen_labels, sequence_lengths, word_lengths, poses = batch
+        feed_dict = {self.word_ids: words, 
+          self.char_ids: chars, 
+          self.word_lengths: word_lengths, 
+          self.nen_labels: nen_labels, 
+          self.label_lens: sequence_lengths, 
+          self.dropout_op: 1.0, 
+          self.dropout_lstm: 1.0, 
+          self.word_pos_ids: poses, 
+          self.is_training: False}
+        logits = self.session.run((self.logits), feed_dict=feed_dict)
+        for logit, leng in zip(logits, sequence_lengths):
+            logit = logit[:leng]
+            decode_sequence, _ = tf.contrib.crf.viterbi_decode(logit, transition_params)
+            y_pred.append(decode_sequence)
+
+    return y_pred
+```
+
+```
+def _next_batch_predict(self, data, num_batch):
+    start = 0
+    idx = 0
+    while idx < num_batch:
+        X_batch = data['X'][start:start + self.batch_size]
+        Y_nen_batch = data['Y_nen'][start:start + self.batch_size]
+        Z_batch = data['Z'][start:start + self.batch_size]
+        char_ids, word_ids = zip(*[zip(*x) for x in X_batch])
+        """
+        对数字化阶段中得到的一系列embedding值做归一化处理
+        （例如统一不同句子、不同单词的embedding数组的长度）
+        """
+        word_ids, sequence_lengths = pad_sequences(word_ids, pad_tok=0)
+        char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
+        nen_labels, _ = pad_sequences(Y_nen_batch, pad_tok=([0] * self.nen_label_size), nlevels=3)
+        pos_ids, _ = pad_sequences(Z_batch, pad_tok=0)
+        start += self.batch_size
+        idx += 1
+        yield (word_ids, char_ids, nen_labels, sequence_lengths, word_lengths, pos_ids)
+```
+
+## NEN 是啥
+
+## BiLTSM 是啥
+
+## CRF 是啥
