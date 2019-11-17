@@ -377,6 +377,15 @@ def process(self, document):
     ]
     """
     entities = self._TensorNer__decode_y_pred(y_pred, document)
+    """
+    反数字化阶段结束
+    entities = [
+      content: (识别出来的实体名称)
+      ids: {...}
+      tokens: (该实体名称所包含的单词们)
+      type: (该实体的类型：Chemical or Disease)
+    ]
+    """
     return entities
 ```
 
@@ -615,7 +624,7 @@ Codes)](http://web.mit.edu/6.02/www/f2010/handouts/lectures/L9.pdf)
 
 > 卷积码是信道编码（channel coding）技术的一种，在电信领域中，属于一种纠错码（error-correcting code）。相对于分组码，卷积码维持信道的记忆效应（memory property）。卷积码的由来，是因为输入的原始消息数据会和编码器（encoder）的冲激响应（impulse response）做卷积运算
 
-**越来越看不懂了**
+**好像偏题了**
 
 ## Tensorflow 中的 Viterbi Decode 是啥
 
@@ -659,3 +668,9 @@ def __decode_y_pred(self, y_pred, document):
                 entities.append(e)
     return entities
 ```
+
+## BILUO tagging scheme 是啥
+
+- 以本工程为例，D3NER的任务是识别文章中的两大类实体（Chemical和Disease），那么，可将文章中的每一个单词打上一个tag（标签）（这就是模型预测阶段所做的工作），标签共有9个（4+4+1）分别是B-Chemical, I-Chemical, L-Chemical, U-Chemical, B-Disease, I-Disease, L-Disease, U-Disease, 和Other
+
+- 以下句为例
