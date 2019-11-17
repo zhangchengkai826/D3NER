@@ -368,6 +368,14 @@ def process(self, document):
     数字化阶段结束
     """
     y_pred = self.model.predict_classes({'X':X,  'Z':Z,  'Y_nen':Y_nen}, self.transition_params)
+    """
+    模型预测阶段结束
+    y_pred = [
+      [
+        句子1单词1可能所属的标签中得分最高的标签的序号
+      ]
+    ]
+    """
     entities = self._TensorNer__decode_y_pred(y_pred, document)
     return entities
 ```
@@ -541,8 +549,18 @@ def predict_classes(self, data, transition_params):
           self.is_training: False}
         logits = self.session.run((self.logits), feed_dict=feed_dict)
         for logit, leng in zip(logits, sequence_lengths):
+            """
+            logit = 一个浮点数矩阵(每一列代表一个标签(tag))(模型输出)
+            """
             logit = logit[:leng]
+            """
+            logit = 每个句子都对应一个浮点数矩阵，假设该句子中含有x个单词，则截取矩阵的前x行
+            transition_params = 一个浮点数矩阵（假设有n个标签，则矩阵为n*n）
+            """
             decode_sequence, _ = tf.contrib.crf.viterbi_decode(logit, transition_params)
+            """
+            decode_sequence = 该句中每个单词可能所属的n个标签中得分最高的那个标签的序号
+            """
             y_pred.append(decode_sequence)
 
     return y_pred
@@ -572,6 +590,72 @@ def _next_batch_predict(self, data, num_batch):
 
 ## NEN 是啥
 
-## BiLTSM 是啥
+> In natural language processing, entity linking, also referred to as named-entity linking (NEL),[1] named-entity disambiguation (NED), named-entity recognition and disambiguation (NERD) or named-entity normalization (NEN)[2] is the task of assigning a unique identity to entities (such as famous individuals, locations, or companies) mentioned in text. For example, given the sentence "Paris is the capital of France", the idea is to determine that "Paris" refers to the city of Paris and not to Paris Hilton or any other entity that could be referred to as "Paris". Entity linking is different from named-entity recognition (NER) in that NER identifies the occurrence of a named entity in text but it does not identify which specific entity it is (see Differences from other techniques).
 
-## CRF 是啥
+> 在自然语言处理中，实体链接也称为命名实体链接（NEL），命名实体歧义消除（NED），命名实体识别和歧义消除（NERD）或命名实体规范化（NEN）。它是为文本中提到的实体（例如，著名的个人，位置或公司）分配唯一身份的任务。例如，给定句子“巴黎是法国的首都”，其想法是确定“巴黎”是指巴黎市而不是巴黎希尔顿或任何其他可以称为“巴黎”的实体。实体链接与命名实体识别（NER）的不同之处在于NER可以识别文本中是否存在命名实体，但不能标识其是哪个特定实体（请参阅与其他技术的差异）。
+
+## Viterbi Decode 是啥
+
+> A Viterbi decoder uses the Viterbi algorithm for decoding a bitstream that has been encoded using a convolutional code or trellis code.
+
+> 维特比解码器使用维特比算法来解码使用卷积码或网格码编码的比特流
+
+- [找到了MIT的一份讲义 (Lecture 9 - Viterbi Decoding of Convolutional
+Codes)](http://web.mit.edu/6.02/www/f2010/handouts/lectures/L9.pdf)
+
+## Viterbi Algorithm 是啥
+
+> The Viterbi algorithm is a dynamic programming algorithm for finding the most likely sequence of hidden states—called the Viterbi path—that results in a sequence of observed events, especially in the context of Markov information sources and hidden Markov models (HMM).
+
+> 维特比算法是一种DP算法，用于查找最可能的隐藏状态序列（称为维特比路径），该序列导致一系列观察到的事件。该算法在马尔可夫信息源和隐马尔可夫模型（HMM）的情况下尤其适用
+
+## 卷积码是啥
+
+> In telecommunication, a convolutional code is a type of error-correcting code that generates parity symbols via the sliding application of a boolean polynomial function to a data stream. The sliding application represents the 'convolution' of the encoder over the data, which gives rise to the term 'convolutional coding'. The sliding nature of the convolutional codes facilitates trellis decoding using a time-invariant trellis. Time invariant trellis decoding allows convolutional codes to be maximum-likelihood soft-decision decoded with reasonable complexity.
+
+> 卷积码是信道编码（channel coding）技术的一种，在电信领域中，属于一种纠错码（error-correcting code）。相对于分组码，卷积码维持信道的记忆效应（memory property）。卷积码的由来，是因为输入的原始消息数据会和编码器（encoder）的冲激响应（impulse response）做卷积运算
+
+**越来越看不懂了**
+
+## Tensorflow 中的 Viterbi Decode 是啥
+
+- [找到了stackoverflow上的一篇回答](https://stackoverflow.com/questions/51301061/how-to-understand-the-viterbi-decode-in-tensorflow)
+
+```
+def viterbi_decode(score, transition_params):
+  """Decode the highest scoring sequence of tags outside of 
+  TensorFlow.
+
+  This should only be used at test time.
+
+  Args:
+    score: A [seq_len, num_tags] matrix of unary potentials.
+    transition_params: A [num_tags, num_tags] matrix of binary potentials.
+
+  Returns:
+    viterbi: A [seq_len] list of integers containing the highest scoring tag
+    indicies.
+    viterbi_score: A float containing the score for the Viterbi 
+    sequence.
+  """
+```
+
+```
+def __decode_y_pred(self, y_pred, document):
+    entities = []
+    for i in range(len(y_pred)):
+        j = 0
+        while j < len(y_pred[i]):
+            e = None
+            if self.all_labels[y_pred[i][j]][0] == 'U':
+                e = BioEntity(etype=(constants.REV_ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:j + 1]))
+            elif self.all_labels[y_pred[i][j]][0] == 'B':
+                l_idx = self._TensorNer__last_index(j, y_pred[i])
+                if self.all_labels[y_pred[i][l_idx]][0] == 'L' and self.all_labels[y_pred[i][l_idx]][1] == self.all_labels[y_pred[i][j]][1]:
+                    e = BioEntity(etype=(constants.REV_ETYPE_MAP[self.all_labels[y_pred[i][j]][1]]), tokens=(document.sentences[i].tokens[j:l_idx + 1]))
+                j = l_idx
+            j += 1
+            if e:
+                entities.append(e)
+    return entities
+```
