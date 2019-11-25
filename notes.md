@@ -568,7 +568,7 @@ def predict_classes(self, data, transition_params):
             """
             decode_sequence, _ = tf.contrib.crf.viterbi_decode(logit, transition_params)
             """
-            decode_sequence = 该句中每个单词可能所属的n个标签中得分最高的那个标签的序号
+            decode_sequence = 该句中每个单词可能所属的n个标签（标签的种类与定义方式详见下文：BILUO tagging scheme）中得分最高的那个标签的序号
             """
             y_pred.append(decode_sequence)
 
@@ -673,4 +673,6 @@ def __decode_y_pred(self, y_pred, document):
 
 - 以本工程为例，D3NER的任务是识别文章中的两大类实体（Chemical和Disease），那么，可将文章中的每一个单词打上一个tag（标签）（这就是模型预测阶段所做的工作），标签共有9个（4+4+1）分别是B-Chemical, I-Chemical, L-Chemical, U-Chemical, B-Disease, I-Disease, L-Disease, U-Disease, 和Other
 
-- 以下句为例
+- B - Beginning, I - Internal, L - Last, U - Unit, O - Other
+
+- 假设一个Chemical实体名由N个单词组成（N>1），那么其中的第1个单词应被打上B-Chemical的标签，第2~N-1个单词应被打上I-Chemical的标签，第N个单词应被打上L-Chemical的标签；如果实体名只含一个单词，那么这个单词应被打上U-Chemical的标签；对于Disease实体名以此类推；对于不属于任何种类实体名的单词，应打上Other的标签
